@@ -1,6 +1,7 @@
 import "dotenv/config";
 import Fastify from "fastify";
 import { sendText } from "./whatsapp.js";
+import { getReply } from "./ai.js";
 
 const app = Fastify({ logger: true });
 
@@ -27,8 +28,8 @@ app.post("/webhook", async (req, reply) => {
   const texto = msg.text?.body ?? "";
 
   try {
-    // MVP: eco simples pra provar o loop
-    await sendText(from, `Recebi: "${texto}"`);
+    const resposta = await getReply(from, texto);
+    await sendText(from, resposta);
   } catch (err) {
     app.log.error(err);
   }
