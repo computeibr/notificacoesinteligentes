@@ -46,8 +46,8 @@ app.post("/webhook", async (req, reply) => {
     let resposta;
     if (msg.type === "image") {
       const caption = msg.image.caption ?? "";
-      logMessage(from, "in", `[imagem] ${caption}`.trim());
       const base64 = await downloadMediaBase64(msg.image.id);
+      logMessage(from, "in", caption, { base64, mimeType: msg.image.mime_type });
       resposta = await getReplyForImage(from, base64, msg.image.mime_type, caption);
     } else {
       const texto = msg.text?.body ?? "";
