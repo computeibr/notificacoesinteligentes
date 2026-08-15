@@ -26,3 +26,19 @@ export function sendText(to, body) {
 export function sendTemplate(to, name = "hello_world", lang = "en_US") {
   return post({ to, type: "template", template: { name, language: { code: lang } } });
 }
+
+// Botão que abre um link externo — só funciona DENTRO da janela de 24h
+export function sendCtaUrl(to, bodyText, buttonText, url) {
+  return post({
+    to,
+    type: "interactive",
+    interactive: {
+      type: "cta_url",
+      body: { text: bodyText },
+      action: {
+        name: "cta_url",
+        parameters: { display_text: buttonText, url },
+      },
+    },
+  });
+}
