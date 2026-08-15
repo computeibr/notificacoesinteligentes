@@ -1,7 +1,7 @@
 import "dotenv/config";
 import Fastify from "fastify";
-import { sendText, sendCtaUrl } from "./whatsapp.js";
-import { getReply } from "./ai.js";
+import { sendText, sendCtaUrl, downloadMediaBase64 } from "./whatsapp.js";
+import { getReply, getReplyForImage } from "./ai.js";
 import { logMessage, getMessages } from "./store.js";
 import { renderPage } from "./dashboard.js";
 
@@ -41,11 +41,20 @@ app.post("/webhook", async (req, reply) => {
   if (!msg) return; // pode ser um status (entregue/lido), ignorar
 
   const from = msg.from; // número do usuário
-  const texto = msg.text?.body ?? "";
-  logMessage(from, "in", texto);
 
   try {
-    const resposta = await getReply(from, texto);
+    let resposta;
+    if (msg.type === "image") {
+      const caption = msg.image.caption ?? "";
+      logMessage(from, "in", `[imagem] ${caption}`.trim());
+      const base64 = await downloadMediaBase64(msg.image.id);
+      resposta = await getReplyForImage(from, base64, msg.image.mime_type, caption);
+    } else {
+      const texto = msg.text?.body ?? "";
+      logMessage(from, "in", texto);
+      resposta = await getReply(from, texto);
+    }
+
     if (resposta.type === "button") {
       await sendCtaUrl(from, resposta.bodyText, resposta.buttonText, resposta.url);
       logMessage(from, "out", `${resposta.bodyText} [botão: ${resposta.buttonText}]`);

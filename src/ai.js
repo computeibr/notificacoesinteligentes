@@ -3,7 +3,7 @@ const API_KEY = process.env.ANTHROPIC_API_KEY;
 const MAX_HISTORY = 20; // últimas 20 mensagens (10 trocas) por contato
 const SITE_URL = "https://computei.com.br";
 
-const SYSTEM_PROMPT = `Você é um assistente de atendimento via WhatsApp. Seu objetivo é conversar com o cliente de forma simpática e objetiva, entender o que ele precisa, e qualificar o interesse dele (o que procura, urgência, orçamento se fizer sentido). Quando fizer sentido o cliente conhecer mais detalhes, use a ferramenta send_link_button para mandar um botão que leva ao site. Quando o interesse estiver claro, avise que alguém da equipe vai continuar o atendimento. Respostas curtas, tom natural de WhatsApp, em português do Brasil.`;
+const SYSTEM_PROMPT = `Você é um assistente de atendimento via WhatsApp. Seu objetivo é conversar com o cliente de forma simpática e objetiva, entender o que ele precisa, e qualificar o interesse dele (o que procura, urgência, orçamento se fizer sentido). O cliente pode enviar imagens — olhe o conteúdo e comente/ajude com base no que aparece nela. Quando fizer sentido o cliente conhecer mais detalhes, use a ferramenta send_link_button para mandar um botão que leva ao site. Quando o interesse estiver claro, avise que alguém da equipe vai continuar o atendimento. Respostas curtas, tom natural de WhatsApp, em português do Brasil.`;
 
 const TOOLS = [
   {
@@ -22,9 +22,9 @@ const TOOLS = [
 
 const conversations = new Map(); // telefone -> [{ role, content }]
 
-export async function getReply(from, userText) {
+async function callClaude(from, userContent) {
   const history = conversations.get(from) ?? [];
-  history.push({ role: "user", content: userText });
+  history.push({ role: "user", content: userContent });
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -57,4 +57,16 @@ export async function getReply(from, userText) {
   history.push({ role: "assistant", content: text });
   conversations.set(from, history.slice(-MAX_HISTORY));
   return { type: "text", text };
+}
+
+export function getReply(from, userText) {
+  return callClaude(from, userText);
+}
+
+export function getReplyForImage(from, base64, mediaType, caption) {
+  const content = [
+    { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+    { type: "text", text: caption || "O cliente enviou essa imagem." },
+  ];
+  return callClaude(from, content);
 }

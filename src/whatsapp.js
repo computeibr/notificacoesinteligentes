@@ -42,3 +42,17 @@ export function sendCtaUrl(to, bodyText, buttonText, url) {
     },
   });
 }
+
+// Baixa uma mídia recebida (ex.: imagem) e devolve em base64
+export async function downloadMediaBase64(mediaId) {
+  const infoRes = await fetch(`https://graph.facebook.com/${GRAPH}/${mediaId}`, {
+    headers: { Authorization: `Bearer ${TOKEN}` },
+  });
+  const info = await infoRes.json();
+  if (!infoRes.ok) throw new Error(JSON.stringify(info));
+
+  const fileRes = await fetch(info.url, { headers: { Authorization: `Bearer ${TOKEN}` } });
+  if (!fileRes.ok) throw new Error(`Falha ao baixar mídia: ${fileRes.status}`);
+  const buffer = Buffer.from(await fileRes.arrayBuffer());
+  return buffer.toString("base64");
+}
