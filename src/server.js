@@ -1,6 +1,6 @@
 import "dotenv/config";
 import Fastify from "fastify";
-import { sendText } from "./whatsapp.js";
+import { sendText, sendCtaUrl } from "./whatsapp.js";
 import { getReply } from "./ai.js";
 
 const app = Fastify({ logger: true });
@@ -29,7 +29,11 @@ app.post("/webhook", async (req, reply) => {
 
   try {
     const resposta = await getReply(from, texto);
-    await sendText(from, resposta);
+    if (resposta.type === "button") {
+      await sendCtaUrl(from, resposta.bodyText, resposta.buttonText, resposta.url);
+    } else {
+      await sendText(from, resposta.text);
+    }
   } catch (err) {
     app.log.error(err);
   }
