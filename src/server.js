@@ -2,8 +2,24 @@ import "dotenv/config";
 import Fastify from "fastify";
 import { sendText, sendCtaUrl } from "./whatsapp.js";
 import { getReply } from "./ai.js";
+import { logMessage, getMessages } from "./store.js";
+import { renderPage } from "./dashboard.js";
 
 const app = Fastify({ logger: true });
+
+function autenticado(req) {
+  const auth = req.headers.authorization ?? "";
+  if (!auth.startsWith("Basic ")) return false;
+  const [, senha] = Buffer.from(auth.slice(6), "base64").toString().split(":");
+  return senha === process.env.DASHBOARD_PASSWORD;
+}
+
+function exigirSenha(req, reply) {
+  if (autenticado(req)) return true;
+  reply.header("WWW-Authenticate", 'Basic realm="Conversas"');
+  reply.code(401).send("Autenticação necessária");
+  return false;
+}
 
 // Verificação do webhook (Meta chama uma vez com GET)
 app.get("/webhook", async (req, reply) => {
@@ -26,17 +42,31 @@ app.post("/webhook", async (req, reply) => {
 
   const from = msg.from; // número do usuário
   const texto = msg.text?.body ?? "";
+  logMessage(from, "in", texto);
 
   try {
     const resposta = await getReply(from, texto);
     if (resposta.type === "button") {
       await sendCtaUrl(from, resposta.bodyText, resposta.buttonText, resposta.url);
+      logMessage(from, "out", `${resposta.bodyText} [botão: ${resposta.buttonText}]`);
     } else {
       await sendText(from, resposta.text);
+      logMessage(from, "out", resposta.text);
     }
   } catch (err) {
     app.log.error(err);
   }
+});
+
+// Página de acompanhamento das conversas (protegida por senha)
+app.get("/conversas", async (req, reply) => {
+  if (!exigirSenha(req, reply)) return;
+  reply.type("text/html").send(renderPage());
+});
+
+app.get("/api/messages", async (req, reply) => {
+  if (!exigirSenha(req, reply)) return;
+  reply.send(getMessages());
 });
 
 app.listen({ port: Number(process.env.PORT) || 3333, host: "0.0.0.0" });
